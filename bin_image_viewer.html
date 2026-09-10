@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BIN 圖片查看器</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Arial, "Microsoft JhengHei", "PingFang SC", sans-serif;
+    background: #f3f4f6;
+    color: #222;
+  }
+  .wrap {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 24px;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  h1 { margin: 0; }
+  
+  .lang-select {
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+    background-color: white;
+    cursor: pointer;
+  }
+
+  .drop {
+    display: block;
+    border: 2px dashed #888;
+    border-radius: 14px;
+    padding: 35px 20px;
+    text-align: center;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .drop * {
+    pointer-events: none; /* 防止拖曳進子元素時觸發 dragleave 事件 */
+  }
+  .drop.dragover { background: #eef6ff; border-color: #3578e5; }
+  input[type=file] { display: none; }
+  
+  button {
+    border: 0;
+    border-radius: 8px;
+    padding: 9px 16px;
+    cursor: pointer;
+    background: #333;
+    color: white;
+    font-weight: bold;
+    transition: background 0.2s, opacity 0.2s;
+  }
+  button:hover:not(:disabled) {
+    background: #555;
+  }
+  button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+  
+  .btn-download {
+    background: #28a745;
+  }
+  .btn-download:hover:not(:disabled) {
+    background: #218838;
+  }
+
+  .info {
+    margin: 18px 0;
+    padding: 14px;
+    background: white;
+    border-radius: 10px;
+    font-family: Consolas, monospace;
+    white-space: pre-wrap;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .viewer {
+    min-height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+    padding: 30px;
+    border-radius: 12px;
+    background-color: #ddd;
+    background-image:
+      linear-gradient(45deg, #bbb 25%, transparent 25%),
+      linear-gradient(-45deg, #bbb 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #bbb 75%),
+      linear-gradient(-45deg, transparent 75%, #bbb 75%);
+    background-size: 24px 24px;
+    background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+  }
+  canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+    background: transparent;
+  }
+  .controls {
+    margin-top: 16px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .error { color: #b00020; font-weight: bold; }
+  .hint { color: #666; font-size: 14px; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h1 id="i18n-title">BIN 圖片查看器</h1>
+    <select id="langSelect" class="lang-select">
+      <option value="zh-Hant" selected>繁體中文</option>
+      <option value="zh-Hans">简体中文</option>
+      <option value="en">English</option>
+    </select>
+  </div>
+
+  <label class="drop" id="drop">
+    <strong id="i18n-dropMain">點擊選擇 .bin 檔案</strong><br>
+    <span id="i18n-dropSub">拖拽 BIN 檔案到此區域</span>
+    <div class="hint" id="i18n-dropHint">支援格式：12 bytes 標頭 + RGBA8888 像素資料</div>
+    <input id="file" type="file" accept=".bin,application/octet-stream">
+  </label>
+
+  <div id="info" class="info"></div>
+
+  <div class="viewer">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <button id="minus" disabled>−</button>
+    <span id="zoom">放大倍率：3×</span>
+    <button id="plus" disabled>＋</button>
+    <button id="reset" disabled>重設</button>
+    <button id="download" class="btn-download" disabled>下載 PNG</button>
+  </div>
+</div>
+
+<script>
+// 語言字典定義
+const translations = {
+  "zh-Hant": {
+    pageTitle: "BIN 圖片查看器",
+    dropMain: "點擊選擇 .bin 檔案",
+    dropSub: "拖拽 BIN 檔案到此區域",
+    dropHint: "支援格式：12 bytes 標頭 + RGBA8888 像素資料",
+    noFile: "尚未選擇檔案",
+    zoomText: "放大倍率：",
+    resetBtn: "重設",
+    downloadBtn: "下載 PNG",
+    fileTooSmall: "檔案太小，沒有完整的 12-byte 標頭。",
+    invalidDim: "無效的圖片尺寸：",
+    insufficientData: "像素資料不足：需要 {expected} bytes，但檔案只有 {actual} bytes。",
+    readFailed: "讀取失敗：",
+    infoFile: "檔案：",
+    infoSize: "檔案大小：",
+    infoMagic: "Magic：",
+    infoDim: "圖片尺寸：",
+    infoStride: "Stride：",
+    infoFormat: "格式："
+  },
+  "zh-Hans": {
+    pageTitle: "BIN 图片查看器",
+    dropMain: "点击选择 .bin 文件",
+    dropSub: "拖拽 BIN 文件到此区域",
+    dropHint: "支持格式：12 bytes 标头 + RGBA8888 像素数据",
+    noFile: "尚未选择文件",
+    zoomText: "放大倍率：",
+    resetBtn: "重置",
+    downloadBtn: "下载 PNG",
+    fileTooSmall: "文件太小，没有完整的 12-byte 标头。",
+    invalidDim: "无效的图片尺寸：",
+    insufficientData: "像素数据不足：需要 {expected} bytes，但文件只有 {actual} bytes。",
+    readFailed: "读取失败：",
+    infoFile: "文件：",
+    infoSize: "文件大小：",
+    infoMagic: "Magic：",
+    infoDim: "图片尺寸：",
+    infoStride: "Stride：",
+    infoFormat: "格式："
+  },
+  "en": {
+    pageTitle: "BIN Image Viewer",
+    dropMain: "Click to select a .bin file",
+    dropSub: "or drag & drop BIN file here",
+    dropHint: "Supported format: 12-byte header + RGBA8888 pixel data",
+    noFile: "No file selected",
+    zoomText: "Zoom: ",
+    resetBtn: "Reset",
+    downloadBtn: "Download PNG",
+    fileTooSmall: "File is too small, missing full 12-byte header.",
+    invalidDim: "Invalid image dimensions: ",
+    insufficientData: "Insufficient pixel data: required {expected} bytes, but file only has {actual} bytes.",
+    readFailed: "Failed to read: ",
+    infoFile: "File: ",
+    infoSize: "File Size: ",
+    infoMagic: "Magic: ",
+    infoDim: "Dimensions: ",
+    infoStride: "Stride: ",
+    infoFormat: "Format: "
+  }
+};
+
+let currentLang = "zh-Hant";
+let currentFileObj = null;
+let currentMetadata = null;
+let currentError = null;
+
+const langSelect = document.getElementById("langSelect");
+const fileInput = document.getElementById("file");
+const drop = document.getElementById("drop");
+const info = document.getElementById("info");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const zoomText = document.getElementById("zoom");
+
+const btnMinus = document.getElementById("minus");
+const btnPlus = document.getElementById("plus");
+const btnReset = document.getElementById("reset");
+const btnDownload = document.getElementById("download");
+
+let zoom = 3;
+let currentImage = null;
+let currentFileName = "image.png";
+
+// 語言切換事件
+langSelect.addEventListener("change", (e) => {
+  currentLang = e.target.value;
+  updateLanguageUI();
+});
+
+function updateLanguageUI() {
+  const lang = translations[currentLang];
+  
+  // 更新固定 UI 文字
+  document.title = lang.pageTitle;
+  document.getElementById("i18n-title").textContent = lang.pageTitle;
+  document.getElementById("i18n-dropMain").textContent = lang.dropMain;
+  document.getElementById("i18n-dropSub").textContent = lang.dropSub;
+  document.getElementById("i18n-dropHint").textContent = lang.dropHint;
+  btnReset.textContent = lang.resetBtn;
+  btnDownload.textContent = lang.downloadBtn;
+  
+  // 更新 Zoom 文字
+  zoomText.textContent = `${lang.zoomText}${zoom}×`;
+
+  // 動態更新 Info 區域
+  if (currentError) {
+    info.innerHTML = `<span class="error">${lang.readFailed}${escapeHtml(currentError)}</span>`;
+  } else if (currentMetadata && currentFileObj) {
+    info.innerHTML =
+      `${lang.infoFile}${escapeHtml(currentFileObj.name)}\n` +
+      `${lang.infoSize}${currentFileObj.size.toLocaleString()} bytes\n` +
+      `${lang.infoMagic}0x${currentMetadata.magic.toString(16).padStart(8, "0")}\n` +
+      `${lang.infoDim}${currentMetadata.width} × ${currentMetadata.height}\n` +
+      `${lang.infoStride}${currentMetadata.stride} bytes\n` +
+      `${lang.infoFormat}RGBA8888`;
+  } else {
+    info.textContent = lang.noFile;
+  }
+}
+
+// 開啟檔案選單
+drop.addEventListener("click", () => fileInput.click());
+
+fileInput.addEventListener("change", e => {
+  if (e.target.files.length) loadBin(e.target.files[0]);
+});
+
+// 拖放 (Drag and Drop) 事件 Handling
+["dragenter", "dragover"].forEach(type => {
+  drop.addEventListener(type, e => {
+    e.preventDefault();
+    drop.classList.add("dragover");
+  });
+});
+
+["dragleave", "drop"].forEach(type => {
+  drop.addEventListener(type, e => {
+    e.preventDefault();
+    drop.classList.remove("dragover");
+  });
+});
+
+drop.addEventListener("drop", e => {
+  const file = e.dataTransfer.files[0];
+  if (file) loadBin(file);
+});
+
+async function loadBin(file) {
+  const lang = translations[currentLang];
+  currentFileObj = file;
+  
+  try {
+    const buffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+
+    if (bytes.length < 12) {
+      throw new Error(lang.fileTooSmall);
+    }
+
+    const view = new DataView(buffer);
+    const magic = view.getUint32(0, true);
+    const width = view.getUint16(4, true);
+    const height = view.getUint16(6, true);
+    const stride = view.getUint32(8, true);
+
+    if (!width || !height || width > 10000 || height > 10000) {
+      throw new Error(`${lang.invalidDim}${width} × ${height}`);
+    }
+
+    const pixelBytes = bytes.length - 12;
+    const expected = width * height * 4;
+
+    if (pixelBytes < expected) {
+      throw new Error(
+        lang.insufficientData.replace("{expected}", expected).replace("{actual}", pixelBytes)
+      );
+    }
+
+    const imageData = new ImageData(width, height);
+    imageData.data.set(bytes.subarray(12, 12 + expected));
+
+    currentImage = imageData;
+    currentMetadata = { magic, width, height, stride };
+    currentError = null;
+    
+    // 設定下載預設檔名 (替換副檔名為 .png)
+    currentFileName = file.name.replace(/\.[^/.]+$/, "") + ".png";
+
+    setButtonsDisabled(false);
+    updateLanguageUI();
+    draw();
+  } catch (err) {
+    currentImage = null;
+    currentMetadata = null;
+    currentError = err.message;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setButtonsDisabled(true);
+    updateLanguageUI();
+  }
+}
+
+function draw() {
+  if (!currentImage) return;
+
+  const w = currentImage.width;
+  const h = currentImage.height;
+
+  canvas.width = w;
+  canvas.height = h;
+  ctx.putImageData(currentImage, 0, 0);
+
+  canvas.style.width = `${w * zoom}px`;
+  canvas.style.height = `${h * zoom}px`;
+
+  const lang = translations[currentLang];
+  zoomText.textContent = `${lang.zoomText}${zoom}×`;
+}
+
+function setButtonsDisabled(disabled) {
+  btnMinus.disabled = disabled;
+  btnPlus.disabled = disabled;
+  btnReset.disabled = disabled;
+  btnDownload.disabled = disabled;
+}
+
+// 放大 / 縮小 / 重設 控制
+btnPlus.onclick = () => {
+  zoom = Math.min(20, zoom + 1);
+  draw();
+};
+
+btnMinus.onclick = () => {
+  zoom = Math.max(1, zoom - 1);
+  draw();
+};
+
+btnReset.onclick = () => {
+  zoom = 3;
+  draw();
+};
+
+// 下載 PNG 功能
+btnDownload.onclick = () => {
+  if (!currentImage) return;
+
+  const link = document.createElement("a");
+  link.download = currentFileName;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+  link.remove();
+};
+
+function escapeHtml(str) {
+  return str.replace(/[&<>"']/g, c => ({
+    "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+  }[c]));
+}
+
+// 初始化 UI
+updateLanguageUI();
+</script>
+</body>
+</html>
