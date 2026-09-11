@@ -1,6 +1,6 @@
-# BIN 圖片查看器 (BIN Image Viewer)
+# BIN / PNG 圖片轉換器 (BIN Image Converter)
 
-一個基於網頁的輕量級工具，專門用來檢視與解析自訂二進位格式（`.bin`）的圖片資料，並支援轉換與下載為標準的 PNG 圖片格式。
+一個基於網頁的輕量級雙向轉換工具，專門用於檢視、解碼與轉換自訂二進位格式（`.bin`）及標準圖片格式（`.png`, `.jpg`, `.webp`）。
 
 👉 **線上預覽**：[https://baiyanscript.github.io/bin_image_viewer/](https://baiyanscript.github.io/bin_image_viewer/)
 
@@ -8,22 +8,23 @@
 
 ## 🛠 功能特點
 
-- **拖放即看**：支援點擊上傳或直接將 `.bin` 檔案拖曳至指定區域。
-- **自動解析標頭 (12 Bytes Header)**：
-  - **Magic** (4 bytes)：辨識碼
+- **雙向轉換支援**：
+  - **BIN 轉 PNG**：線上檢視 `.bin` 檔並一鍵導出為 `.png` 圖檔。
+  - **PNG 轉 BIN**：上傳標準圖片格式（PNG/JPG/WebP），自動加上 12 Bytes 標頭並轉碼為 `.bin` 檔案。
+- **拖放即看**：支援點擊選取或將檔案直接拖曳至頁籤區域。
+- **自動標頭處理 (12 Bytes Header)**：
+  - **Magic** (4 bytes)：辨識碼（預設 `0x494d4730`）
   - **Width / Height** (各 2 bytes)：圖片寬高尺寸
   - **Stride** (4 bytes)：跨距資料
-- **RGBA8888 像素渲染**：支援解碼並呈現高解析度像素。
-- **互動控制**：
-  - 圖片即時縮放（支援 1× 至 20× 放大倍率調整、重設）。
-  - 一鍵將 `.bin` 格式轉存並下載為 `.png` 圖檔。
-- **多國語言支援**：內建繁體中文 (zh-Hant)、簡體中文 (zh-Hans) 與英文 (en) 切換。
+- **RGBA8888 像素編解碼**：支援完整 RGBA 通道渲染與二進位生成。
+- **互動控制與縮放**：支援 1× 至 20× 放大倍率調整與重設。
+- **多國語言介面**：內建繁體中文 (zh-Hant)、簡體中文 (zh-Hans) 及英文 (en)。
 
 ---
 
-## 📁 檔案格式規範
+## 📁 BIN 檔案格式規範
 
-本工具所支援的 `.bin` 檔案結構如下：
+本工具定義與支援的 `.bin` 二進位結構如下：
 
 1. **標頭區段 (Header - 12 Bytes)**：
    - `0x00 - 0x03`：Magic (`uint32`, Little-endian)
@@ -38,10 +39,10 @@
 
 ## 🚀 快速開始
 
-本專案為純前端網頁應用（HTML5 / JavaScript），免安裝任何依賴：
+本專案為純前端網頁應用（HTML5 / JavaScript），無需安裝任何環境或依賴：
 
 1. 下載或 Clone 本專案。
-2. 直接使用現代瀏覽器（Chrome, Edge, Firefox, Safari）開啟 `index.html` 即可使用。
+2. 使用現代網頁瀏覽器（Chrome, Edge, Firefox, Safari）開啟 `index.html` 即可運作。
 
 ---
 
