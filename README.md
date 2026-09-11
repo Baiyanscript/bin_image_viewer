@@ -2,7 +2,7 @@
 
 一個基於網頁的輕量級雙向轉換工具，專門用於檢視、解碼與轉換自訂二進位格式（`.bin`）及標準圖片格式（`.png`, `.jpg`, `.webp`）。
 
-👉 **線上預覽**：[https://baiyanscript.github.io/bin_image_viewer/](https://baiyanscript.github.io/bin_image_viewer/)
+👉 **線上預覽**：[https://baiyanscript.github.io/bin_image_converter/](https://baiyanscript.github.io/bin_image_converter/)
 
 ---
 
