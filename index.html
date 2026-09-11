@@ -165,7 +165,7 @@
 
     <div class="controls">
       <button id="minusBin" disabled>−</button>
-      <span id="zoomBin">放大倍率：3×</span>
+      <span id="zoomBin">放大倍率：1×</span>
       <button id="plusBin" disabled>＋</button>
       <button id="resetBin" disabled>重設</button>
       <button id="downloadPng" class="btn-download" disabled>下載 PNG</button>
@@ -278,8 +278,8 @@ const translations = {
 
 let currentLang = "zh-Hant";
 
-// BIN 轉 PNG 變數
-let binZoom = 3;
+// BIN 轉 PNG 變數 (預設放大倍率改為 1)
+let binZoom = 1;
 let binImage = null;
 let binFileObj = null;
 let binMetadata = null;
@@ -443,7 +443,7 @@ function setBinButtonsDisabled(disabled) {
 
 document.getElementById("plusBin").onclick = () => { binZoom = Math.min(20, binZoom + 1); drawBin(); updateLanguageUI(); };
 document.getElementById("minusBin").onclick = () => { binZoom = Math.max(1, binZoom - 1); drawBin(); updateLanguageUI(); };
-document.getElementById("resetBin").onclick = () => { binZoom = 3; drawBin(); updateLanguageUI(); };
+document.getElementById("resetBin").onclick = () => { binZoom = 1; drawBin(); updateLanguageUI(); };
 
 document.getElementById("downloadPng").onclick = () => {
   if (!binImage) return;
